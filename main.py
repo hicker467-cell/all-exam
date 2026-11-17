@@ -11,6 +11,7 @@ from scrapers.cv_raman import scrape_cv_raman
 from scrapers.nmms_bihar import scrape_nmms_bihar
 from scrapers.navodaya import scrape_navodaya
 from scrapers.newspapers import scrape_newspapers
+from tech_radar_runner import run_tech_radar
 
 def process_notice(item: dict):
     exam_id = item.get("exam_id", "general_exam")
@@ -110,8 +111,17 @@ def run_all_scrapers():
             print(f"Error running scraper {name}: {e}")
             
     print("\n" + "=" * 65)
-    print(f"🎉 Run Complete! New Verified Notices Broadcasted: {total_processed}")
+    print(f"🎉 Exam Run Complete! New Verified Notices Broadcasted: {total_processed}")
     print("=" * 65)
+    
+    # Run Tech & AI Release Radar for 'Coding with Sudhir'
+    print("\n" + "=" * 65)
+    print("🚀 Launching Coding with Sudhir - Tech & AI Release Radar")
+    print("=" * 65)
+    try:
+        run_tech_radar(max_alerts=3)
+    except Exception as e:
+        print(f"Error running Tech Radar: {e}")
 
 if __name__ == "__main__":
     run_all_scrapers()
