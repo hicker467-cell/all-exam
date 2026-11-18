@@ -44,6 +44,7 @@ def validate_date_and_relevance(item: dict, ai_data: dict) -> tuple[bool, str]:
     title = item.get("title", "")
     t_lower = title.lower()
     exam_id = item.get("exam_id", "")
+    is_newspaper = (exam_id == "hindi_newspaper_alert")
     
     # 1. Clean title check against generic menu/nav buttons
     clean_t = re.sub(r'[^a-zA-Z0-9\s]', '', t_lower).strip()
@@ -107,18 +108,11 @@ def validate_date_and_relevance(item: dict, ai_data: dict) -> tuple[bool, str]:
         if all(d < today for d in parsed_dates):
             return False, f"Expired: All dates {all_dates} are in the past"
             
-    # 6. If no dates are found, require explicit current session (2026/2027) & live action keywords
-    if not all_dates:
-        has_future_session = any(k in t_lower for k in ["2026-27", "2026-2027", "2027", "2027-28"])
-        has_action_marker = any(k in t_lower for k in [
-            "आवेदन", "फॉर्म", "प्रवेश", "पंजीकरण", "apply", "form live",
-            "online application", "inviting online", "admit card", "जारी", "schedule"
-        ])
-        if not (has_future_session and has_action_marker):
-            return False, "Notice lacks verified dates and upcoming action confirmation"
-            
-    # 7. Newspaper articles must have verified deadline dates to prevent fluff
-    if exam_id == "hindi_newspaper_alert" and not all_dates:
+    # 6. Safety Net for Official Government Portals vs Newspapers:
+    # If it is an official portal (SCERT, Navodaya, AVS, BCST, NTA, BSEB) and AI verified it as target exam:
+    # We DO NOT reject it even if exact dates are "शीघ्र घोषित" (coming soon in circular).
+    # Only newspapers require mandatory future dates to prevent clickbait fluff.
+    if is_newspaper and not all_dates:
         return False, "Newspaper article lacks verified future deadline dates"
         
     return True, "Valid active notice"
