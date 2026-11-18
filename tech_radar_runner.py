@@ -22,8 +22,8 @@ def process_tech_item(item: dict, dry_run: bool = False):
     print(f"\n🔎 [TECH SCAN] Checking: {title} ({version_tag})", flush=True)
     
     # 1. Deduplication Check
-    dedup_hash = generate_tech_dedup_hash(tool_id, version_tag)
-    if is_tech_duplicate(dedup_hash):
+    dedup_hash = generate_tech_dedup_hash(tool_id, version_tag, link=link, title=title)
+    if is_tech_duplicate(dedup_hash, link=link, title=title):
         print(f"⏩ [ALREADY SENT] {title} previously notified. Skipping.", flush=True)
         return False
         
@@ -44,6 +44,7 @@ def process_tech_item(item: dict, dry_run: bool = False):
         "tool_id": tool_id,
         "version_tag": version_tag,
         "dedup_hash": dedup_hash,
+        "title": title,
         "tool_name": ai_result.get("tool_name", title),
         "category": ai_result.get("category", update_type),
         "release_badge": item.get("release_badge", "🟢 FRESH"),

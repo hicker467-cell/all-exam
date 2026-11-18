@@ -1,4 +1,6 @@
 import os
+import hashlib
+import re
 import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
@@ -219,8 +221,13 @@ def check_trending_tech_news():
                 
                 title_lower = title.lower()
                 if any(kw in title_lower for kw in keywords):
+                    # Deterministic ID using SHA-256 (Never use Python's random hash())
+                    clean_link = link.split("?")[0].strip().lower()
+                    clean_title = "".join(ch for ch in title_lower if ch.isalnum()).strip()
+                    news_id = hashlib.sha256(f"{clean_link}:{clean_title}".encode("utf-8")).hexdigest()[:16]
+                    
                     items.append({
-                        "tool_id": f"news_{abs(hash(title))}",
+                        "tool_id": f"news_{news_id}",
                         "tool_name": title,
                         "version_tag": "Trending",
                         "title": title,

@@ -1,3 +1,4 @@
+import re
 from bs4 import BeautifulSoup
 from scrapers.base import fetch_html
 
@@ -8,6 +9,7 @@ def scrape_cv_raman() -> list:
     """
     Scrapes Sir CV Raman Science Talent Search / BCST Bihar notices
     from Department of Science, Technology and Technical Education, Bihar.
+    Strictly filters out old archive years.
     """
     html = fetch_html(URL, timeout=20)
     if not html:
@@ -20,10 +22,15 @@ def scrape_cv_raman() -> list:
     for link in soup.find_all("a", href=True):
         text = link.get_text().strip()
         href = link["href"].strip()
+        text_lower = text.lower()
         
+        # Skip old years
+        if re.search(r'\b(202[0-4]|2024[-_ ]?25|2023[-_ ]?24)\b', text_lower):
+            continue
+            
         # Check relevance to Science Talent / CV Raman / Ramanujan / BCST
-        keywords = ["raman", "science", "bcst", "talent", "vigyan", "रमन", "प्रतिभा", "छात्रवृत्ति", "olympiad"]
-        if any(k in text.lower() or k in href.lower() for k in keywords):
+        keywords = ["raman", "talent", "विज्ञान प्रतिभा", "रमन", "रामानुजन", "bcst", "olympiad"]
+        if any(k in text_lower or k in href.lower() for k in keywords):
             full_url = href if href.startswith("http") else BASE_DOMAIN + (href if href.startswith("/") else "/" + href)
             notices.append({
                 "exam_id": "bihar_cv_raman",
@@ -33,20 +40,4 @@ def scrape_cv_raman() -> list:
                 "snippet": text
             })
             
-    # Also grab the latest 3 general notices if specific keywords not found in title
-    if not notices:
-        for link in soup.find_all("a", href=True)[:5]:
-            text = link.get_text().strip()
-            href = link["href"].strip()
-            if len(text) > 20 and (href.endswith(".pdf") or "CitizenHome" in href or "notice" in href.lower()):
-                full_url = href if href.startswith("http") else BASE_DOMAIN + (href if href.startswith("/") else "/" + href)
-                notices.append({
-                    "exam_id": "bihar_cv_raman",
-                    "source_name": "BCST / विज्ञान विभाग, बिहार",
-                    "title": text,
-                    "link": full_url,
-                    "snippet": text
-                })
-                break
-                
     return notices

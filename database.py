@@ -1,4 +1,5 @@
 import hashlib
+import re
 from pymongo import MongoClient
 from datetime import datetime
 from config import MONGO_URI, DB_NAME
@@ -48,16 +49,43 @@ def save_notification(doc: dict) -> bool:
         # Duplicate key error or write error
         return False
 
-def generate_tech_dedup_hash(tool_id: str, version_tag: str) -> str:
+def generate_tech_dedup_hash(tool_id: str, version_tag: str, link: str = "", title: str = "") -> str:
     """
-    Creates a unique hash per software version so each new release fires exactly once.
+    Creates a unique hash per software version or news item so each update fires exactly once.
     """
-    raw = f"tech:{tool_id.lower().strip()}:{version_tag.lower().strip()}"
+    clean_id = tool_id.lower().strip()
+    clean_version = version_tag.lower().strip()
+    clean_link = link.split("?")[0].strip().lower() if link else ""
+    raw = f"tech:{clean_id}:{clean_version}:{clean_link}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
-def is_tech_duplicate(dedup_hash: str) -> bool:
+def is_tech_duplicate(dedup_hash: str, link: str = "", title: str = "") -> bool:
     db = get_db()
-    return db.tech_notifications.find_one({"dedup_hash": dedup_hash}) is not None
+    # 1. Exact dedup_hash check
+    if db.tech_notifications.find_one({"dedup_hash": dedup_hash}) is not None:
+        return True
+
+    # 2. Canonical Link check (prevents same URL from re-triggering with different parameters)
+    if link:
+        clean_link = link.split("?")[0].strip().lower()
+        if clean_link:
+            escaped_link = re.escape(clean_link)
+            if db.tech_notifications.find_one({"link": {"$regex": f"^{escaped_link}"}}) is not None:
+                return True
+
+    # 3. CVE identifier check (e.g. CVE-2026-114938)
+    if title:
+        cve_match = re.search(r"cve-\d{4}-\d+", title.lower())
+        if cve_match:
+            cve_id = cve_match.group(0)
+            if db.tech_notifications.find_one({"$or": [
+                {"title": {"$regex": cve_id, "$options": "i"}},
+                {"tool_name": {"$regex": cve_id, "$options": "i"}},
+                {"link": {"$regex": cve_id, "$options": "i"}}
+            ]}) is not None:
+                return True
+
+    return False
 
 def save_tech_notification(doc: dict) -> bool:
     db = get_db()
