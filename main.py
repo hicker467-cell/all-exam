@@ -25,6 +25,13 @@ from scrapers.newspapers import scrape_newspapers
 # Tech & AI radar for Coding with Sudhir
 from tech_radar_runner import run_tech_radar
 
+GENERIC_NAV_TITLES = [
+    "scholarship portal", "portal", "examination result", "citizen home",
+    "competitive examinations", "home", "contact us", "about us", "download",
+    "important links", "latest updates", "notice board", "nmmss", "nmms",
+    "science technology and technical education department"
+]
+
 def is_valid_date_format(d_str: str) -> bool:
     try:
         datetime.strptime(d_str.strip(), "%Y-%m-%d")
@@ -38,20 +45,29 @@ def validate_date_and_relevance(item: dict, ai_data: dict) -> tuple[bool, str]:
     t_lower = title.lower()
     exam_id = item.get("exam_id", "")
     
-    # 1. Regex check for old archive years (2020-2024, 2024-25, 2023-24)
+    # 1. Clean title check against generic menu/nav buttons
+    clean_t = re.sub(r'[^a-zA-Z0-9\s]', '', t_lower).strip()
+    if clean_t in GENERIC_NAV_TITLES:
+        return False, f"Generic website navigation link ({title[:50]})"
+        
+    words = [w for w in re.split(r'\s+', clean_t) if w]
+    if len(words) <= 2 and not any(k in t_lower for k in ["2026", "2027", "2028"]):
+        return False, f"Non-descriptive short navigation text ({title[:50]})"
+        
+    # 2. Regex check for old archive years (2020-2024, 2024-25, 2023-24)
     if re.search(r'\b(202[0-4]|2024[-_ ]?25|2023[-_ ]?24)\b', t_lower):
         return False, f"Old academic year in title ({title[:50]})"
         
-    # 2. Check Blacklisted Irrelevant topics (UPSC, adult jobs, police, clickbait)
+    # 3. Check Blacklisted Irrelevant topics (UPSC, adult jobs, police, clickbait)
     blacklisted = [
-        "upsc", "bpsc", "constable", "कांस्टेबल", "police", "दरोga", "दरोगा", 
+        "upsc", "bpsc", "constable", "कांस्टेबल", "police", "दरोगा", 
         "ड्राइवर", "कहानी", "interview schedule", "इंटरव्यू", "aibe", "bar council",
         "civil judge", "ugc net", "neet pg"
     ]
     if any(b in t_lower for b in blacklisted):
         return False, f"Irrelevant non-school topic ({title[:50]})"
         
-    # 3. AI Target Exam Check
+    # 4. AI Target Exam Check
     if not ai_data.get("is_target_exam", True):
         reason = ai_data.get("rejection_reason", "Not relevant to Class 1-12 coaching")
         return False, f"AI Target Filter: {reason}"
@@ -60,7 +76,7 @@ def validate_date_and_relevance(item: dict, ai_data: dict) -> tuple[bool, str]:
         reason = ai_data.get("rejection_reason", "Past/expired event")
         return False, f"AI Date Filter: {reason}"
         
-    # 4. Strict Deterministic Date Verification
+    # 5. Strict Deterministic Date Verification
     dates = ai_data.get("dates", {})
     last_date_str = dates.get("form_last_date", "").strip() if dates else ""
     exam_date_str = dates.get("exam_date", "").strip() if dates else ""
@@ -71,7 +87,6 @@ def validate_date_and_relevance(item: dict, ai_data: dict) -> tuple[bool, str]:
     if last_date_str and is_valid_date_format(last_date_str):
         last_date = datetime.strptime(last_date_str, "%Y-%m-%d").date()
         if last_date < today:
-            # If application closed, check if upcoming exam is scheduled
             if exam_date_str and is_valid_date_format(exam_date_str):
                 exam_date = datetime.strptime(exam_date_str, "%Y-%m-%d").date()
                 if exam_date < today:
@@ -92,7 +107,17 @@ def validate_date_and_relevance(item: dict, ai_data: dict) -> tuple[bool, str]:
         if all(d < today for d in parsed_dates):
             return False, f"Expired: All dates {all_dates} are in the past"
             
-    # 5. Newspaper articles must have verified deadline dates to prevent fluff
+    # 6. If no dates are found, require explicit current session (2026/2027) & live action keywords
+    if not all_dates:
+        has_future_session = any(k in t_lower for k in ["2026-27", "2026-2027", "2027", "2027-28"])
+        has_action_marker = any(k in t_lower for k in [
+            "आवेदन", "फॉर्म", "प्रवेश", "पंजीकरण", "apply", "form live",
+            "online application", "inviting online", "admit card", "जारी", "schedule"
+        ])
+        if not (has_future_session and has_action_marker):
+            return False, "Notice lacks verified dates and upcoming action confirmation"
+            
+    # 7. Newspaper articles must have verified deadline dates to prevent fluff
     if exam_id == "hindi_newspaper_alert" and not all_dates:
         return False, "Newspaper article lacks verified future deadline dates"
         
