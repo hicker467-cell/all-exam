@@ -14,6 +14,11 @@ GITHUB_CORE_REPOS = [
     {"name": "VS Code", "repo": "microsoft/vscode", "official_download": "https://code.visualstudio.com/Download"},
     {"name": "Git for Windows", "repo": "git-for-windows/git", "official_download": "https://git-scm.com/download/win"},
     {"name": "Ollama (Local AI)", "repo": "ollama/ollama", "official_download": "https://ollama.com/download"},
+    {"name": "Apache NetBeans", "repo": "apache/netbeans", "official_download": "https://netbeans.apache.org/front/main/download/"},
+    {"name": "Adoptium OpenJDK 21 (Java)", "repo": "adoptium/temurin21-binaries", "official_download": "https://adoptium.net/temurin/releases/"},
+    {"name": "Adoptium OpenJDK 17 (Java)", "repo": "adoptium/temurin17-binaries", "official_download": "https://adoptium.net/temurin/releases/"},
+    {"name": "Eclipse IDE", "repo": "eclipse-platform/eclipse.platform", "official_download": "https://www.eclipse.org/downloads/"},
+    {"name": "MinGW-w64 (GCC Compiler)", "repo": "niXman/mingw-builds-binaries", "official_download": "https://winlibs.com/"},
     {"name": "Docker Desktop", "repo": "docker/docker-ce", "official_download": "https://www.docker.com/products/docker-desktop/"},
     {"name": "Go (Golang)", "repo": "golang/go", "official_download": "https://go.dev/dl/"}
 ]
@@ -82,6 +87,36 @@ def check_python_official():
                     pass
     except Exception as e:
         print(f"Error checking Python official: {e}")
+    return items
+
+def check_mysql_official():
+    """
+    Directly checks MySQL official repository for the newest MySQL release tags.
+    """
+    items = []
+    url = "https://api.github.com/repos/mysql/mysql-server/tags?per_page=3"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    try:
+        resp = requests.get(url, headers=headers, timeout=6)
+        if resp.status_code == 200:
+            data = resp.json()
+            if data:
+                tag = data[0].get("name", "")
+                version = tag.replace("mysql-cluster-", "").replace("mysql-", "")
+                items.append({
+                    "tool_id": f"mysql_{version.replace('.', '_')}",
+                    "tool_name": f"MySQL Server {version}",
+                    "version_tag": version,
+                    "title": f"MySQL Server {version} Released",
+                    "link": "https://dev.mysql.com/downloads/installer/",
+                    "release_notes_url": f"https://github.com/mysql/mysql-server/releases/tag/{tag}",
+                    "content_snippet": f"Official MySQL release {version} for Windows.",
+                    "update_type": "Software Version Release",
+                    "release_badge": "🟢 LATEST OFFICIAL",
+                    "age_days": 0
+                })
+    except Exception as e:
+        print(f"Error checking MySQL official: {e}")
     return items
 
 def check_github_releases():
@@ -203,9 +238,10 @@ def check_trending_tech_news():
 
 def scrape_all_tech():
     """
-    Master function combining Python official, GitHub releases, and trending AI / security bugs.
+    Master function combining Python official, MySQL official, GitHub releases, and trending AI / security bugs.
     """
     python_items = check_python_official()
+    mysql_items = check_mysql_official()
     releases = check_github_releases()
     news = check_trending_tech_news()
-    return python_items + releases + news
+    return python_items + mysql_items + releases + news

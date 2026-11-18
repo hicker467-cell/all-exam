@@ -15,8 +15,12 @@ def get_db():
         _db.notifications.create_index("dedup_hash", unique=True)
         _db.notifications.create_index("exam_id")
         _db.notifications.create_index("academic_year")
+        # 30-day auto-cleanup TTL index
+        _db.notifications.create_index("created_at", expireAfterSeconds=30 * 86400)
         # Unique index for Coding with Sudhir tech alerts
         _db.tech_notifications.create_index("dedup_hash", unique=True)
+        # 30-day auto-cleanup TTL index
+        _db.tech_notifications.create_index("created_at", expireAfterSeconds=30 * 86400)
     return _db
 
 def generate_dedup_hash(exam_id: str, title: str, link: str, dates: dict = None) -> str:
