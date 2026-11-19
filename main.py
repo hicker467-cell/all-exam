@@ -173,6 +173,7 @@ def process_notice(item: dict):
         "title": title,
         "link": link,
         "dedup_hash": final_hash,
+        "alert_type": ai_data.get("alert_type", "LIVE_UPDATE"),
         "academic_year": ai_data.get("academic_year", "2026-2027"),
         "dates": dates,
         "summary_hindi": ai_data.get("summary_hindi", title),

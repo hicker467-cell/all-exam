@@ -5,7 +5,8 @@ from config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, COACHING_YOUTUBE
 
 def send_telegram_alert(notice_data: dict, screenshot_path: str = None) -> bool:
     """
-    Sends formatted Hindi exam notice with YouTube metadata and screenshot to personal Telegram.
+    Sends formatted Hindi exam notice with YouTube metadata, advance alert badges,
+    and screenshot to personal Telegram.
     """
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("Telegram bot credentials missing in config.")
@@ -13,6 +14,7 @@ def send_telegram_alert(notice_data: dict, screenshot_path: str = None) -> bool:
         
     dates = notice_data.get("dates", {})
     yt = notice_data.get("youtube_metadata", {})
+    alert_type = notice_data.get("alert_type", "LIVE_UPDATE")
     
     dates_lines = []
     if dates.get("form_start_date"):
@@ -26,10 +28,19 @@ def send_telegram_alert(notice_data: dict, screenshot_path: str = None) -> bool:
         
     dates_block = "\n".join(dates_lines) if dates_lines else "🗓️ <i>तारीखें आधिकारिक नोटिस में देखें</i>"
     
+    # Header badge based on Advance Alert vs Live Notice
+    if alert_type == "ADVANCE_NOTICE":
+        header_block = (
+            "🟡 <b>[अग्रिम सूचना / UPCOMING ADVANCE ALERT]</b>\n"
+            "⚠️ <i>यह आधिकारिक मीडिया द्वारा पूर्व सूचना है। लिंक निर्धारित तिथि पर एक्टिव होगा।</i>"
+        )
+    else:
+        header_block = "🟢 <b>[लाइव सूचना / OFFICIAL NOTICE]</b>"
+    
     caption = (
-        f"📢 <b>नया परीक्षा नोटिफिकेशन (100% Verified)</b>\n\n"
+        f"{header_block}\n\n"
         f"🎯 <b>परीक्षा:</b> {notice_data.get('title', '')}\n"
-        f"🏛️ <b>बोर्ड/संस्था:</b> {notice_data.get('source_name', '')}\n\n"
+        f"🏛️ <b>बोर्ड/स्रोत:</b> {notice_data.get('source_name', '')}\n\n"
         f"📝 <b>विवरण:</b>\n{notice_data.get('summary_hindi', '')}\n\n"
         f"📅 <b>महत्वपूर्ण तिथियां:</b>\n{dates_block}\n\n"
         f"🎬 <b>YouTube Title Suggestion:</b>\n<code>{yt.get('title', '')}</code>"
@@ -38,7 +49,7 @@ def send_telegram_alert(notice_data: dict, screenshot_path: str = None) -> bool:
     buttons = []
     direct_link = notice_data.get("link")
     if direct_link:
-        buttons.append([{"text": "📄 ऑफिशियल नोटिस / लिंक", "url": direct_link}])
+        buttons.append([{"text": "📄 ऑफिशियल नोटिस / खबर लिंक", "url": direct_link}])
     buttons.append([{"text": "📺 सागर कोचिंग YouTube चैनल", "url": COACHING_YOUTUBE}])
     
     reply_markup = json.dumps({"inline_keyboard": buttons})

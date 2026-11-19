@@ -15,6 +15,7 @@ def analyze_notice(raw_title: str, text_snippet: str, source_name: str) -> dict:
     """
     Uses Groq AI to extract structured dates, verify authenticity,
     filter out irrelevant jobs or past expired events,
+    detect whether it is an ADVANCE UPCOMING ALERT vs LIVE NOTICE,
     and generate student-friendly Hindi summary and YouTube metadata.
     """
     client = get_ai_client()
@@ -42,8 +43,12 @@ TARGET EXAMS:
 
 IRRELEVANT TOPICS TO REJECT:
 - Adult jobs (UPSC, BPSC Civil, SSC CGL/CHSL, Police Constable, Daroga, Bank PO, Railway Group D, AIBE, NEET PG, UGC NET)
-- General articles, interview schedules, motivational stories, unrelated news.
+- General articles, interview schedules, motivational stories, unrelated lifestyle news.
 - Any notice from past years (2023, 2024, or 2024-25) or whose deadlines have already passed prior to {today_str}.
+
+ALERT TYPE CLASSIFICATION:
+- "ADVANCE_NOTICE": If the notice announces that an admit card, result, or form WILL BE released on an upcoming date (e.g., "Hall tickets to be released on Nov 19", "कल जारी होगा", "पंजीकरण 1 दिसंबर से", "to be announced on...").
+- "LIVE_UPDATE": If the form, admit card, or result is already live/released right now and students can act immediately.
 
 Analyze this notice from source '{source_name}':
 Title: {raw_title}
@@ -53,6 +58,7 @@ Return STRICT JSON ONLY:
 {{
   "is_target_exam": true or false,
   "is_active_future_event": true or false,
+  "alert_type": "ADVANCE_NOTICE" or "LIVE_UPDATE",
   "rejection_reason": "Explanation if false, else empty",
   "academic_year": "{current_year}-{current_year + 1}",
   "dates": {{
@@ -82,6 +88,7 @@ Return STRICT JSON ONLY:
         return {
             "is_target_exam": True,
             "is_active_future_event": True,
+            "alert_type": "LIVE_UPDATE",
             "rejection_reason": "",
             "academic_year": f"{current_year}-{current_year + 1}",
             "dates": {},

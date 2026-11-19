@@ -1,20 +1,24 @@
 import re
+import xml.etree.ElementTree as ET
 from bs4 import BeautifulSoup
 from scrapers.base import fetch_html
 
-# Exact target keywords for Sagar Coaching Centre (School & Scholarship Exams)
+# Target keywords for Sagar Coaching Centre (School & Scholarship Entrance Exams in Hindi & English)
 TARGET_KEYWORDS = [
-    "nmms", "nmmss", "रमन टैलेंट", "रामानुजन", "नवोदय", "jnvst", "सैनिक स्कूल", "aissee",
-    "सिमुलतला", "sav प्रवेश", "मैट्रिक परीक्षा", "इंटर परीक्षा", "मेधा छात्रवृत्ति",
-    "अटल आवासीय", "पॉलिटेक्निक प्रवेश", "iti प्रवेश", "मेधासॉफ्ट", "कन्या उत्थान",
-    "विद्याज्ञान", "बोर्ड परीक्षा टाइम टेबल", "बोर्ड एडमिट कार्ड"
+    "nmms", "nmmss", "रमन टैलेंट", "रामानुजन", "ramanujan", "cv raman", "नवोदय", "jnvst", "navodaya",
+    "सैनिक स्कूल", "aissee", "sainik school", "सिमुलतला", "sav admission", "simultala",
+    "मैट्रिक परीक्षा", "इंटर परीक्षा", "मेधा छात्रवृत्ति", "अटल आवासीय", "atal awasiya",
+    "पॉलिटेक्निक", "polytechnic", "jeecup", "dcece", "iticat", "iti admission",
+    "मेधासॉफ्ट", "कन्या उत्थान", "विद्याज्ञान", "vidyagyan", "बोर्ड परीक्षा", "board exam",
+    "hall ticket", "admit card", "एडमिट कार्ड", "प्रवेश पत्र"
 ]
 
 # Blacklist of irrelevant news (civil services, adult jobs, police, clickbait, legal)
 BLACKLIST_WORDS = [
-    "upsc", "bpsc", "civil judge", "कांस्टेबल", "police", "दरोगा", "ड्राइवर",
+    "upsc", "bpsc", "civil judge", "कांस्टेबल", "police", "दरोगा", "ड्राइवर", "driver",
     "interview schedule", "इंटरव्यू", "कहानी", "सफलता की कहानी", "प्रेरणादायक",
-    "aibe", "bar council", "ugc net", "neet pg", "banking", "ibps", "रेलवे ग्रुप डी"
+    "aibe", "bar council", "ugc net", "neet pg", "banking", "ibps", "रेलवे ग्रुप डी",
+    "perfectionism", "zomato", "cyclone", "internship", "philippines"
 ]
 
 def is_relevant_article(title: str) -> bool:
@@ -36,8 +40,12 @@ def is_relevant_article(title: str) -> bool:
 
 def scrape_newspapers() -> list:
     """
-    Scrapes strictly filtered, breaking school exam and scholarship announcements
-    from Live Hindustan and Prabhat Khabar Education.
+    Scrapes strictly filtered, breaking and advance exam/scholarship announcements
+    from Top Trusted Media:
+    1. Live Hindustan Career (Hindi)
+    2. Prabhat Khabar Education (Hindi)
+    3. Times of India - TOI Education (English/National)
+    4. The Indian Express - Education (English/National)
     """
     notices = []
     
@@ -82,5 +90,59 @@ def scrape_newspapers() -> list:
                     count += 1
                     if count >= 2:
                         break
-                        
+
+    # 3. Times of India (TOI Education RSS)
+    xml_toi = fetch_html("https://timesofindia.indiatimes.com/rssfeeds/913168846.cms", timeout=12)
+    if xml_toi:
+        try:
+            tree = ET.fromstring(xml_toi)
+            count = 0
+            for item in tree.findall(".//item"):
+                t_elem = item.find("title")
+                l_elem = item.find("link")
+                if t_elem is not None and l_elem is not None:
+                    title = (t_elem.text or "").strip()
+                    link = (l_elem.text or "").strip()
+                    if len(title) > 20 and is_relevant_article(title):
+                        if link not in [n["link"] for n in notices]:
+                            notices.append({
+                                "exam_id": "hindi_newspaper_alert",
+                                "source_name": "Times of India (TOI Education)",
+                                "title": title,
+                                "link": link,
+                                "snippet": title
+                            })
+                            count += 1
+                            if count >= 2:
+                                break
+        except Exception as e:
+            print(f"Error parsing TOI RSS: {e}")
+
+    # 4. The Indian Express (Education RSS)
+    xml_ie = fetch_html("https://indianexpress.com/section/education/feed/", timeout=12)
+    if xml_ie:
+        try:
+            tree = ET.fromstring(xml_ie)
+            count = 0
+            for item in tree.findall(".//item"):
+                t_elem = item.find("title")
+                l_elem = item.find("link")
+                if t_elem is not None and l_elem is not None:
+                    title = (t_elem.text or "").strip()
+                    link = (l_elem.text or "").strip()
+                    if len(title) > 20 and is_relevant_article(title):
+                        if link not in [n["link"] for n in notices]:
+                            notices.append({
+                                "exam_id": "hindi_newspaper_alert",
+                                "source_name": "The Indian Express (Education)",
+                                "title": title,
+                                "link": link,
+                                "snippet": title
+                            })
+                            count += 1
+                            if count >= 2:
+                                break
+        except Exception as e:
+            print(f"Error parsing Indian Express RSS: {e}")
+            
     return notices
